@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微电网能源管理系统 | 刘瑜程 202410132030</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #101a2c; --panel-2: #14203a; --border: #1f2f4d;
+    --text: #e6edf7; --muted: #8fa3c0; --primary: #2f81f7;
+    --green: #2ecc71; --red: #ff5f57; --yellow: #f5b942;
+    --cyan: #21c7d0; --orange: #ff8c42; --purple: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei","PingFang SC",sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    background: linear-gradient(90deg,#0d1730 0%,#14244a 60%,#0d1730 100%);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 42px; height: 42px; border-radius: 10px; background: linear-gradient(135deg,var(--primary),var(--cyan)); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .brand h1 { font-size: 20px; letter-spacing: 2px; }
+  .brand p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 18px; }
+  .clock { font-size: 13px; color: var(--muted); text-align: right; line-height: 1.5; }
+  .user-badge { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--border); padding: 8px 14px; border-radius: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg,var(--green),var(--cyan)); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #06202a; }
+  .user-badge .name { font-size: 14px; font-weight: bold; }
+  .user-badge .id { font-size: 12px; color: var(--muted); }
+
+  .layout { display: flex; min-height: calc(100vh - 70px); }
+  nav { width: 220px; background: var(--panel); border-right: 1px solid var(--border); padding: 16px 10px; flex-shrink: 0; }
+  nav .nav-title { font-size: 12px; color: var(--muted); padding: 8px 12px; letter-spacing: 2px; }
+  nav a { display: flex; align-items: center; gap: 10px; padding: 11px 14px; margin: 4px 0; color: var(--muted); text-decoration: none; border-radius: 10px; font-size: 14px; transition: all .2s; }
+  nav a:hover { background: var(--panel-2); color: var(--text); }
+  nav a.active { background: linear-gradient(90deg,rgba(47,129,247,.25),transparent); color: #fff; border-left: 3px solid var(--primary); }
+  main { flex: 1; padding: 20px 24px; overflow-x: hidden; min-width: 0; }
+  section.page { display: none; animation: fade .3s; }
+  section.page.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none; } }
+
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .page-head h2 { font-size: 20px; }
+  .page-head h2 span.tag { font-size: 11px; background: rgba(46,204,113,.15); color: var(--green); padding: 3px 10px; border-radius: 20px; margin-left: 10px; vertical-align: middle; }
+  .sub { color: var(--muted); font-size: 13px; }
+
+  .grid { display: grid; gap: 16px; margin-bottom: 16px; }
+  .g5 { grid-template-columns: repeat(5, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+  .card h3 { font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card h3::before { content: ""; width: 4px; height: 16px; background: var(--primary); border-radius: 2px; display: inline-block; }
+  .kpi .label { color: var(--muted); font-size: 13px; }
+  .kpi .num { font-size: 26px; font-weight: bold; margin-top: 6px; }
+  .kpi .unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .kpi .delta { font-size: 12px; margin-top: 6px; }
+  .up { color: var(--green); } .down { color: var(--red); }
+  .chart { width: 100%; height: 320px; }
+  .chart-sm { width: 100%; height: 240px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: normal; background: rgba(255,255,255,.02); }
+  tr:hover td { background: rgba(47,129,247,.06); }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; white-space: nowrap; }
+  .b-green { background: rgba(46,204,113,.15); color: var(--green); }
+  .b-yellow { background: rgba(245,185,66,.15); color: var(--yellow); }
+  .b-red { background: rgba(255,95,87,.15); color: var(--red); }
+  .b-blue { background: rgba(47,129,247,.15); color: #6aa8ff; }
+  .b-cyan { background: rgba(33,199,208,.15); color: var(--cyan); }
+  .b-purple { background: rgba(167,139,250,.15); color: var(--purple); }
+
+  .info-table td:first-child { color: var(--muted); width: 32%; }
+  .src-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .src-card .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .src-card .icon { font-size: 26px; }
+  .src-card .p-name { font-weight: bold; font-size: 14px; }
+  .src-card .p-val { font-size: 22px; font-weight: bold; margin: 6px 0; }
+  .bar { height: 8px; background: #0b1424; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .bar i { display: block; height: 100%; border-radius: 4px; }
+
+  .timeline { list-style: none; }
+  .timeline li { position: relative; padding: 0 0 18px 26px; border-left: 2px solid var(--border); margin-left: 8px; }
+  .timeline li:last-child { border-left: transparent; padding-bottom: 0; }
+  .timeline li::before { content: ""; position: absolute; left: -8px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px rgba(47,129,247,.8); }
+  .timeline .t { font-size: 12px; color: var(--muted); }
+  .timeline .c { font-size: 13px; margin-top: 3px; }
+
+  .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--border); font-size: 14px; }
+  .switch { width: 40px; height: 20px; background: #1d2b46; border-radius: 20px; position: relative; cursor: pointer; transition: .2s; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #67799a; transition: .2s; }
+  .switch.on { background: rgba(46,204,113,.4); }
+  .switch.on::after { left: 22px; background: var(--green); }
+
+  /* ===== 倒计时 ===== */
+  .countdown { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+  .cd-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 6px; min-width: 62px; text-align: center; }
+  .cd-box .v { font-size: 22px; font-weight: bold; color: var(--orange); font-variant-numeric: tabular-nums; }
+  .cd-box .l { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .progress-wrap { margin-top: 12px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .progress { height: 10px; background: #0b1424; border-radius: 5px; overflow: hidden; }
+  .progress i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg,var(--green),var(--cyan)); }
+
+  /* ===== 离网切换演示 ===== */
+  .island-btn { background: var(--red); border: none; color: #fff; padding: 10px 22px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: bold; }
+  .island-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .island-steps { display: flex; gap: 8px; margin: 14px 0; }
+  .step { flex: 1; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 8px; text-align: center; opacity: .35; transition: all .3s; }
+  .step.active { opacity: 1; border-color: var(--cyan); box-shadow: 0 0 12px rgba(33,199,208,.4); }
+  .step.done { opacity: 1; border-color: var(--green); }
+  .step .s-t { font-size: 12px; color: var(--muted); }
+  .step .s-n { font-size: 13px; font-weight: bold; margin-top: 4px; }
+  .step .s-ms { font-size: 18px; font-weight: bold; color: var(--cyan); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .island-result { text-align: center; padding: 14px; border-radius: 12px; background: rgba(46,204,113,.08); border: 1px dashed var(--green); margin-top: 6px; display: none; }
+  .island-result .big { font-size: 34px; font-weight: bold; color: var(--green); }
+  .island-log { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.9; font-family: Consolas, monospace; max-height: 150px; overflow-y: auto; }
+
+  .eco-card { text-align: center; padding: 20px 14px; }
+  .eco-card .e-icon { font-size: 30px; }
+  .eco-card .e-val { font-size: 24px; font-weight: bold; margin: 8px 0 4px; }
+  .eco-card .e-label { font-size: 12px; color: var(--muted); }
+
+  .rank-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .rank-no { width: 26px; height: 26px; border-radius: 50%; background: var(--panel-2); color: var(--muted); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; flex-shrink: 0; }
+  .rank-no.top { background: linear-gradient(135deg,var(--orange),var(--red)); color: #fff; }
+  .rank-bar { flex: 1; height: 14px; background: #0b1424; border-radius: 7px; overflow: hidden; }
+  .rank-bar i { display: block; height: 100%; border-radius: 7px; transition: width .6s; }
+  .rank-val { font-size: 12px; color: var(--muted); width: 90px; text-align: right; flex-shrink: 0; }
+
+  footer { text-align: center; padding: 18px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  footer b { color: var(--text); }
+
+  @media (max-width: 1100px) { .g5, .g4 { grid-template-columns: repeat(2, 1fr); } .g3, .g2 { grid-template-columns: 1fr; } }
+  @media (max-width: 720px) { nav { display: none; } .g5, .g4 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">⚡</div>
+    <div>
+      <h1>智慧微电网能源管理系统</h1>
+      <p>Smart Microgrid Energy Management System · MGEMS v4.0</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="clock"><div id="now-date">—</div><div id="now-time">—</div></div>
+    <div class="user-badge">
+      <div class="avatar">刘</div>
+      <div>
+        <div class="name">刘瑜程</div>
+        <div class="id">202410132030</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav>
+    <div class="nav-title">功能导航</div>
+    <a class="active" data-page="overview" href="javascript:;">🏠 系统总览</a>
+    <a data-page="forecast" href="javascript:;">📈 功率预测</a>
+    <a data-page="plan" href="javascript:;">📋 发用电计划</a>
+    <a data-page="source" href="javascript:;">🔌 电源管理</a>
+    <a data-page="island" href="javascript:;">⚡ 毫秒级离网切换</a>
+    <a data-page="analysis" href="javascript:;">📊 用电情况分析</a>
+    <a data-page="eco" href="javascript:;">🌱 新能源社会效益</a>
+    <a data-page="stats" href="javascript:;">📉 统计分析与评估</a>
+    <a data-page="dispatch" href="javascript:;">⚙️ 优化调度</a>
+  </nav>
+
+  <main>
+    <!-- ==================== 系统总览 ==================== -->
+    <section class="page active" id="page-overview">
+      <div class="page-head">
+        <h2>系统总览 <span class="tag">运行正常</span></h2>
+        <div class="sub">数据刷新频率：5 秒 · 监测点位：1,286 个 · 在线率 100%</div>
+      </div>
+
+      <!-- 项目基本信息 -->
+      <div class="card" style="margin-bottom:16px">
+        <h3>项目基本信息</h3>
+        <table class="info-table">
+          <tr>
+            <td style="width:20%">项目名称</td><td style="width:30%">校园型多能互补智慧微电网示范工程</td>
+            <td style="width:20%">建设地点</td><td style="width:30%">大学城科技园区（示范校区）</td>
+          </tr>
+          <tr>
+            <td>项目类型</td><td>并网型 / 并离网一体微电网</td>
+            <td>投运日期</td><td>2023 年 3 月 15 日（已稳定运行 <b id="run-days-inline" style="color:var(--green)">—</b> 天）</td>
+          </tr>
+          <tr>
+            <td>总装机容量</td><td>光伏 2.5 MW + 风电 1.5 MW + 储能 2 MW / 2 MWh + 燃气轮机 1.0 MW</td>
+            <td>最大负荷</td><td>3.2 MW（含可调节负荷 400 kW）</td>
+          </tr>
+          <tr>
+            <td>运行模式</td><td>并网运行 / 计划离网 / 故障孤岛（毫秒级切换）</td>
+            <td>投资总额</td><td>4,860 万元</td>
+          </tr>
+          <tr>
+            <td>系统设计</td><td>刘瑜程（202410132030）</td>
+            <td>建设单位</td><td>新能源与智能电网联合实验室</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- 累计指标 -->
+      <div class="grid g5">
+        <div class="card kpi"><div class="label">🔋 累计节约电量</div>
+          <div class="num" style="color:var(--green)"><span id="kpi-energy">—</span><span class="unit">万 kWh</span></div>
+          <div class="delta up">▲ 本月新增 12.6 万 kWh</div></div>
+        <div class="card kpi"><div class="label">📅 累计运行天数</div>
+          <div class="num" style="color:var(--cyan)"><span id="kpi-days">—</span><span class="unit">天</span></div>
+          <div class="delta" style="color:var(--muted)">自 2023-03-15 投运起</div></div>
+        <div class="card kpi"><div class="label">💰 累计系统收益</div>
+          <div class="num" style="color:var(--yellow)"><span id="kpi-profit">—</span><span class="unit">万元</span></div>
+          <div class="delta up">▲ 含电费节约 + 峰谷套利 + 补贴</div></div>
+        <div class="card kpi"><div class="label">📈 投资回收进度</div>
+          <div class="num" style="color:var(--purple)">53.2<span class="unit">%</span></div>
+          <div class="delta" style="color:var(--muted)">已回收 2,586 / 4,860 万元</div></div>
+        <div class="card kpi"><div class="label">⏳ 投资回收期倒计时</div>
+          <div style="margin-top:8px">
+            <div class="countdown" style="justify-content:flex-start">
+              <div class="cd-box"><div class="v" id="cd-d">—</div><div class="l">天</div></div>
+              <div class="cd-box"><div class="v" id="cd-h">—</div><div class="l">时</div></div>
+              <div class="cd-box"><div class="v" id="cd-m">—</div><div class="l">分</div></div>
+              <div class="cd-box"><div class="v" id="cd-s">—</div><div class="l">秒</div></div>
+            </div>
+            <div class="progress-wrap">
+              <div class="progress-label"><span>预计 2027-05-31 完成全额回收</span><span>剩余 <b id="cd-days2" style="color:var(--orange)">—</b> 天</span></div>
+              <div class="progress"><i id="cd-bar" style="width:53.2%"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card"><h3>电力需求曲线（今日 · 未来 24h 预测）</h3><div id="chart-demand" class="chart"></div></div>
+        <div class="card"><h3>运行功率曲线（实时）</h3><div id="chart-rt" class="chart"></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>近 7 日费用对比（万元）</h3><div id="chart-cost7" class="chart"></div></div>
+        <div class="card">
+          <h3>当前能耗排名（实时 Top 6）</h3>
+          <div id="rank-list"></div>
+          <div class="sub" style="margin-top:8px">数据每 5 秒刷新 · 排序按当前瞬时功率</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 功率预测 ==================== -->
+    <section class="page" id="page-forecast">
+      <div class="page-head">
+        <h2>功率预测 <span class="tag">AI 双模型驱动</span></h2>
+        <div class="sub">发电侧：LSTM + 辐照度修正 · 负荷侧：GRU + 温度修正 · 更新于 5 分钟前</div>
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="label">今日光伏预测发电量</div>
+          <div class="num" style="color:var(--yellow)">8,432<span class="unit">kWh</span></div><div class="delta up">▲ 6.2% 较昨日</div></div>
+        <div class="card kpi"><div class="label">今日风电预测发电量</div>
+          <div class="num" style="color:var(--cyan)">3,158<span class="unit">kWh</span></div><div class="delta down">▼ 2.4% 较昨日</div></div>
+        <div class="card kpi"><div class="label">发电功率预测准确率</div>
+          <div class="num" style="color:var(--green)">94.6<span class="unit">%</span></div><div class="delta up">▲ 1.1% 较上周</div></div>
+        <div class="card kpi"><div class="label">负荷功率预测准确率</div>
+          <div class="num" style="color:var(--green)">96.2<span class="unit">%</span></div><div class="delta up">▲ 0.8% 较上周</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>光伏功率预测（未来 24h）</h3><div id="chart-pv" class="chart"></div></div>
+        <div class="card"><h3>风电功率预测（未来 24h）</h3><div id="chart-wind" class="chart"></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>负荷功率预测曲线（未来 24h）</h3><div id="chart-load" class="chart"></div></div>
+        <div class="card"><h3>总发电预测与历史对比（近 7 日）</h3><div id="chart-gen-cmp" class="chart"></div></div>
+      </div>
+      <div class="card">
+        <h3>重点用户负荷预测明细</h3>
+        <table>
+          <tr><th>用户编号</th><th>用户类型</th><th>明日预测峰值 (kW)</th><th>日用电量预测 (kWh)</th><th>负荷等级</th><th>状态</th></tr>
+          <tr><td>U-202410132030</td><td>校园综合楼</td><td>486</td><td>3,240</td><td><span class="badge b-blue">一级</span></td><td><span class="badge b-green">正常</span></td></tr>
+          <tr><td>U-A1021</td><td>工业车间</td><td>1,260</td><td>18,500</td><td><span class="badge b-blue">一级</span></td><td><span class="badge b-green">正常</span></td></tr>
+          <tr><td>U-B0334</td><td>商业中心</td><td>742</td><td>9,860</td><td><span class="badge b-yellow">二级</span></td><td><span class="badge b-green">正常</span></td></tr>
+          <tr><td>U-C0789</td><td>居民片区</td><td>905</td><td>11,230</td><td><span class="badge b-yellow">二级</span></td><td><span class="badge b-green">正常</span></td></tr>
+          <tr><td>U-D0512</td><td>充电站</td><td>620</td><td>4,150</td><td><span class="badge b-purple">三级（可调节）</span></td><td><span class="badge b-yellow">削峰响应</span></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== 发用电计划 ==================== -->
+    <section class="page" id="page-plan">
+      <div class="page-head">
+        <h2>发用电计划 <span class="tag">日前计划已下发</span></h2>
+        <div class="sub">计划口径：96 点（15 分钟）滚动优化 · 支持日内偏差修正</div>
+      </div>
+      <div class="grid g3">
+        <div class="card kpi"><div class="label">计划总发电量</div><div class="num" style="color:var(--yellow)">11,590<span class="unit">kWh</span></div></div>
+        <div class="card kpi"><div class="label">计划总用电量</div><div class="num" style="color:var(--orange)">10,870<span class="unit">kWh</span></div></div>
+        <div class="card kpi"><div class="label">计划联络线交换</div><div class="num" style="color:var(--cyan)">外送 720<span class="unit">kWh</span></div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px"><h3>日前发用电平衡计划曲线</h3><div id="chart-plan" class="chart"></div></div>
+      <div class="card">
+        <h3>24 小时分时段计划明细</h3>
+        <table>
+          <tr><th>时段</th><th>光伏计划 (kW)</th><th>风电计划 (kW)</th><th>储能计划 (kW)</th><th>负荷计划 (kW)</th><th>联络线 (kW)</th><th>计划状态</th></tr>
+          <tr><td>00:00—04:00 谷</td><td>0</td><td>320</td><td>+180（充电）</td><td>1,060</td><td>-560</td><td><span class="badge b-green">已下发</span></td></tr>
+          <tr><td>04:00—08:00 平</td><td>120</td><td>410</td><td>+120（充电）</td><td>1,480</td><td>-830</td><td><span class="badge b-green">已下发</span></td></tr>
+          <tr><td>08:00—12:00 峰</td><td>1,850</td><td>380</td><td>-90（放电）</td><td>2,340</td><td>-200</td><td><span class="badge b-green">已下发</span></td></tr>
+          <tr><td>12:00—17:00 峰</td><td>2,640</td><td>300</td><td>-150（放电）</td><td>2,180</td><td>+610</td><td><span class="badge b-green">已下发</span></td></tr>
+          <tr><td>17:00—21:00 峰</td><td>620</td><td>450</td><td>-310（放电）</td><td>3,120</td><td>-1,360</td><td><span class="badge b-yellow">审核中</span></td></tr>
+          <tr><td>21:00—24:00 平</td><td>0</td><td>380</td><td>-60（放电）</td><td>1,690</td><td>-1,370</td><td><span class="badge b-blue">待确认</span></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== 电源管理 ==================== -->
+    <section class="page" id="page-source">
+      <div class="page-head">
+        <h2>电源管理 <span class="tag">全部在线</span></h2>
+        <div class="sub">接入电源 6 个 · 在线率 100% · 通信规约 IEC 61850 / Modbus-TCP</div>
+      </div>
+      <div class="grid g3">
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">🌞</div><div class="p-name">光伏电站 #1</div></div><span class="badge b-green">运行中</span></div>
+          <div class="p-val" style="color:var(--yellow)">1,842 <span style="font-size:12px;color:var(--muted)">kW</span></div>
+          <div class="sub">装机 2.5 MW · 逆变器 12 台</div>
+          <div class="bar"><i style="width:73%;background:var(--yellow)"></i></div>
+        </div>
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">🌬️</div><div class="p-name">风机集群 #1</div></div><span class="badge b-green">运行中</span></div>
+          <div class="p-val" style="color:var(--cyan)">416 <span style="font-size:12px;color:var(--muted)">kW</span></div>
+          <div class="sub">装机 1.5 MW · 风机 3 台</div>
+          <div class="bar"><i style="width:28%;background:var(--cyan)"></i></div>
+        </div>
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">🔋</div><div class="p-name">储能系统 #1</div></div><span class="badge b-green">放电中</span></div>
+          <div class="p-val" style="color:var(--green)">-260 <span style="font-size:12px;color:var(--muted)">kW（放电）</span></div>
+          <div class="sub">容量 2 MWh · SOC 68%</div>
+          <div class="bar"><i style="width:68%;background:var(--green)"></i></div>
+        </div>
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">⛽</div><div class="p-name">燃气轮机 #1</div></div><span class="badge b-yellow">热备用</span></div>
+          <div class="p-val" style="color:var(--muted)">0 <span style="font-size:12px;color:var(--muted)">kW</span></div>
+          <div class="sub">额定 1.0 MW · 可 5 分钟并网</div>
+          <div class="bar"><i style="width:0%;background:var(--orange)"></i></div>
+        </div>
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">🚗</div><div class="p-name">充电桩群（V2G）</div></div><span class="badge b-green">运行中</span></div>
+          <div class="p-val" style="color:var(--orange)">182 <span style="font-size:12px;color:var(--muted)">kW（用电）</span></div>
+          <div class="sub">桩位 24 个 · 可调节容量 400 kW</div>
+          <div class="bar"><i style="width:45%;background:var(--orange)"></i></div>
+        </div>
+        <div class="card src-card">
+          <div class="top"><div><div class="icon">🏭</div><div class="p-name">大电网联络线</div></div><span class="badge b-cyan">购电中</span></div>
+          <div class="p-val" style="color:var(--purple)">+560 <span style="font-size:12px;color:var(--muted)">kW（受入）</span></div>
+          <div class="sub">最大交换 3 MW · 分时电价运行</div>
+          <div class="bar"><i style="width:19%;background:var(--purple)"></i></div>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>各电源实时出力占比</h3><div id="chart-src-pie" class="chart-sm"></div></div>
+        <div class="card"><h3>设备远方控制（模拟）</h3>
+          <div class="switch-row"><span>🌞 光伏电站 #1 并网开关</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="switch-row"><span>🌬️ 风机集群 #1 并网开关</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="switch-row"><span>🔋 储能系统充放电使能</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="switch-row"><span>⛽ 燃气轮机自动启动（孤网备投）</span><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+          <div class="switch-row" style="border:none"><span>🚗 充电桩削峰响应</span><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 毫秒级离网切换 ==================== -->
+    <section class="page" id="page-island">
+      <div class="page-head">
+        <h2>毫秒级离网切换 <span class="tag">储能 VSG 构网控制</span></h2>
+        <div class="sub">故障切换全程 &lt; 10 ms · 远快于 0.5s 的快速开关方案，敏感负荷无感知</div>
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="label">历史平均切换时间</div><div class="num" style="color:var(--green)">8.4<span class="unit">ms</span></div><div class="delta up">▲ 优于设计指标 10ms</div></div>
+        <div class="card kpi"><div class="label">年内离网切换次数</div><div class="num" style="color:var(--cyan)">14<span class="unit">次</span></div><div class="delta" style="color:var(--muted)">成功率 100%</div></div>
+        <div class="card kpi"><div class="label">切换期间电压跌落</div><div class="num" style="color:var(--yellow)">≤ 5<span class="unit">%</span></div><div class="delta" style="color:var(--muted)">敏感负荷零闪动</div></div>
+        <div class="card kpi"><div class="label">避免停电损失（年）</div><div class="num" style="color:var(--purple)">¥ 32.6<span class="unit">万</span></div><div class="delta up">▲ 实验数据零丢失</div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3>离网切换流程演示（点击按钮模拟电网故障）</h3>
+        <button class="island-btn" id="island-btn" onclick="runIslandDemo()">⚠️ 模拟电网故障 · 触发离网切换</button>
+        <div class="island-steps">
+          <div class="step" id="st1"><div class="s-t">① 故障检测</div><div class="s-n">电压骤降识别</div><div class="s-ms">2.0 ms</div></div>
+          <div class="step" id="st2"><div class="s-t">② 孤岛判定</div><div class="s-n">主动孤岛检测</div><div class="s-ms">1.5 ms</div></div>
+          <div class="step" id="st3"><div class="s-t">③ 联络线分闸</div><div class="s-n">快速断路器动作</div><div class="s-ms">1.2 ms</div></div>
+          <div class="step" id="st4"><div class="s-t">④ 储能接管</div><div class="s-n">VSG 构网建压</div><div class="s-ms">3.9 ms</div></div>
+        </div>
+        <div class="island-result" id="island-result">
+          <div class="big">✔ 离网切换完成 · 全程 8.6 ms</div>
+          <div class="sub" style="margin-top:6px">母线电压恢复至 10.02 kV · 频率稳定在 49.98 Hz · 负荷供电未中断</div>
+        </div>
+        <div class="island-log" id="island-log"></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>切换过程电压 / 频率波形</h3><div id="chart-island" class="chart"></div></div>
+        <div class="card"><h3>近一年离网切换事件记录</h3>
+          <table>
+            <tr><th>日期</th><th>触发原因</th><th>切换耗时</th><th>结果</th></tr>
+            <tr><td>11-18 14:32</td><td>上级线路检修停电</td><td>8.6 ms</td><td><span class="badge b-green">成功</span></td></tr>
+            <tr><td>11-02 09:15</td><td>电网电压暂降</td><td>7.9 ms</td><td><span class="badge b-green">成功</span></td></tr>
+            <tr><td>10-21 16:48</td><td>雷击导致馈线跳闸</td><td>9.2 ms</td><td><span class="badge b-green">成功</span></td></tr>
+            <tr><td>09-30 11:05</td><td>计划性离网试验</td><td>8.1 ms</td><td><span class="badge b-green">成功</span></td></tr>
+            <tr><td>09-12 19:40</td><td>上级变电站故障</td><td>8.8 ms</td><td><span class="badge b-green">成功</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 用电情况分析 ==================== -->
+    <section class="page" id="page-analysis">
+      <div class="page-head">
+        <h2>用电情况分析 <span class="tag">本月账期</span></h2>
+        <div class="sub">计费方式：分时电价（峰 1.05 / 平 0.62 / 谷 0.31 元/kWh）</div>
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="label">本月总用电量</div><div class="num" style="color:var(--orange)">28.4<span class="unit">万 kWh</span></div><div class="delta up">▲ 3.2% 环比</div></div>
+        <div class="card kpi"><div class="label">平均日负荷率</div><div class="num" style="color:var(--cyan)">76.5<span class="unit">%</span></div><div class="delta up">▲ 2.1% 趋优</div></div>
+        <div class="card kpi"><div class="label">综合功率因数</div><div class="num" style="color:var(--green)">0.96</div><div class="delta" style="color:var(--muted)">无功补偿达标</div></div>
+        <div class="card kpi"><div class="label">本月电费支出</div><div class="num" style="color:var(--yellow)">¥ 12.7<span class="unit">万</span></div><div class="delta down">▼ 18.4% 较纯网购电</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>分时用电量占比（本月）</h3><div id="chart-tou" class="chart"></div></div>
+        <div class="card"><h3>各类负荷用电构成（本月）</h3><div id="chart-load-mix" class="chart"></div></div>
+      </div>
+      <div class="card">
+        <h3>典型日 24h 分时用电明细（综合楼 U-202410132030）</h3>
+        <table>
+          <tr><th>时段</th><th>用电量 (kWh)</th><th>电价 (元/kWh)</th><th>电费 (元)</th><th>占比</th><th>评价</th></tr>
+          <tr><td>谷段 00:00—08:00</td><td>620</td><td>0.31</td><td>192.2</td><td>19.1%</td><td><span class="badge b-green">低谷利用充分</span></td></tr>
+          <tr><td>平段 08:00—17:00</td><td>1,540</td><td>0.62</td><td>954.8</td><td>47.5%</td><td><span class="badge b-blue">光伏自发自用抵扣</span></td></tr>
+          <tr><td>峰段 17:00—21:00</td><td>680</td><td>1.05</td><td>714.0</td><td>21.0%</td><td><span class="badge b-yellow">建议负荷转移</span></td></tr>
+          <tr><td>尖峰 21:00—24:00</td><td>400</td><td>0.85</td><td>340.0</td><td>12.4%</td><td><span class="badge b-blue">储能放电覆盖</span></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== 新能源社会效益 ==================== -->
+    <section class="page" id="page-eco">
+      <div class="page-head">
+        <h2>新能源社会效益 <span class="tag">碳中和贡献</span></h2>
+        <div class="sub">核算口径：按电网基准排放因子 0.5568 tCO₂/MWh · 更新至本月</div>
+      </div>
+      <div class="grid g5">
+        <div class="card eco-card"><div class="e-icon">🌍</div><div class="e-val" style="color:var(--green)">1,832<span style="font-size:13px;color:var(--muted)"> 吨</span></div><div class="e-label">累计 CO₂ 减排量</div></div>
+        <div class="card eco-card"><div class="e-icon">🪨</div><div class="e-val" style="color:var(--orange)">748<span style="font-size:13px;color:var(--muted)"> 吨</span></div><div class="e-label">累计节约标准煤</div></div>
+        <div class="card eco-card"><div class="e-icon">🌳</div><div class="e-val" style="color:var(--cyan)">101,800<span style="font-size:13px;color:var(--muted)"> 棵</span></div><div class="e-label">等效植树量</div></div>
+        <div class="card eco-card"><div class="e-icon">🌫️</div><div class="e-val" style="color:var(--purple)">4.2<span style="font-size:13px;color:var(--muted)"> 吨</span></div><div class="e-label">累计 SO₂ 减排量</div></div>
+        <div class="card eco-card"><div class="e-icon">☁️</div><div class="e-val" style="color:var(--yellow)">2.6<span style="font-size:13px;color:var(--muted)"> 吨</span></div><div class="e-label">累计 NOx 减排量</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>逐年减排贡献趋势</h3><div id="chart-eco-trend" class="chart"></div></div>
+        <div class="card">
+          <h3>社会效益综合说明</h3>
+          <table>
+            <tr><th>效益维度</th><th>量化成果</th><th>社会价值</th></tr>
+            <tr><td>能源结构转型</td><td>新能源装机占比 78%</td><td>提升区域可再生能源渗透率，降低对外部电网依赖</td></tr>
+            <tr><td>绿色校园示范</td><td>校区绿电使用率 42%</td><td>形成可复制、可推广的校园微电网建设样板</td></tr>
+            <tr><td>教学科研支撑</td><td>支撑课题 12 项、论文 26 篇</td><td>培养双碳领域人才，产教融合示范平台</td></tr>
+            <tr><td>碳资产储备</td><td>潜在 CCER 资产约 1,800 吨/年</td><td>为未来碳交易市场参与预留收益空间</td></tr>
+            <tr><td>供电韧性</td><td>毫秒级离网切换 14 次/年</td><td>保障科研、医疗等敏感负荷连续供电</td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 统计分析与评估 ==================== -->
+    <section class="page" id="page-stats">
+      <div class="page-head">
+        <h2>统计分析与评估 <span class="tag">本月报表</span></h2>
+        <div class="sub">统计周期：本月 · 自动生成 · 支持导出 PDF / Excel</div>
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="label">本月总发电量</div><div class="num" style="color:var(--yellow)">32.6<span class="unit">万 kWh</span></div><div class="delta up">▲ 8.3% 环比</div></div>
+        <div class="card kpi"><div class="label">新能源消纳率</div><div class="num" style="color:var(--green)">98.7<span class="unit">%</span></div><div class="delta up">▲ 0.5% 环比</div></div>
+        <div class="card kpi"><div class="label">供电可靠率</div><div class="num" style="color:var(--cyan)">99.98<span class="unit">%</span></div><div class="delta">故障 1 次 · 8 分钟</div></div>
+        <div class="card kpi"><div class="label">综合电费节约</div><div class="num" style="color:var(--purple)">¥ 4.86<span class="unit">万</span></div><div class="delta up">▲ 12.4% 环比</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>近 30 日发电量 / 用电量趋势</h3><div id="chart-stat-trend" class="chart"></div></div>
+        <div class="card"><h3>各电源月度发电量构成</h3><div id="chart-stat-stack" class="chart"></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>综合评估雷达图</h3><div id="chart-radar" class="chart-sm"></div></div>
+        <div class="card"><h3>运行关键指标评估表</h3>
+          <table>
+            <tr><th>指标</th><th>本月值</th><th>目标值</th><th>达标情况</th></tr>
+            <tr><td>弃风弃光率</td><td>1.3%</td><td>≤ 3%</td><td><span class="badge b-green">达标</span></td></tr>
+            <tr><td>储能循环效率</td><td>91.2%</td><td>≥ 88%</td><td><span class="badge b-green">达标</span></td></tr>
+            <tr><td>电压合格率</td><td>99.6%</td><td>≥ 98%</td><td><span class="badge b-green">达标</span></td></tr>
+            <tr><td>频率偏差合格率</td><td>99.9%</td><td>≥ 99%</td><td><span class="badge b-green">达标</span></td></tr>
+            <tr><td>需求响应完成率</td><td>87.5%</td><td>≥ 90%</td><td><span class="badge b-yellow">接近</span></td></tr>
+            <tr><td>碳排放强度</td><td>0.28 kg/kWh</td><td>≤ 0.35 kg/kWh</td><td><span class="badge b-green">达标</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 优化调度 ==================== -->
+    <section class="page" id="page-dispatch">
+      <div class="page-head">
+        <h2>优化调度 <span class="tag">经济调度运行中</span></h2>
+        <div class="sub">优化目标：运行成本最低 + 新能源消纳最大 · 求解周期 15 min · MILP 求解器</div>
+      </div>
+      <div class="grid g4">
+        <div class="card kpi"><div class="label">当前调度总成本</div><div class="num" style="color:var(--green)">¥ 0.42<span class="unit">/kWh</span></div><div class="delta down">▼ 9.6% 较优化前</div></div>
+        <div class="card kpi"><div class="label">今日节约成本</div><div class="num" style="color:var(--purple)">¥ 2,340</div><div class="delta up">▲ 累计 8.7 万/月</div></div>
+        <div class="card kpi"><div class="label">优化求解时间</div><div class="num">1.8<span class="unit">s</span></div><div class="delta" style="color:var(--muted)">求解器：MILP (Gurobi)</div></div>
+        <div class="card kpi"><div class="label">联络线计划偏差</div><div class="num" style="color:var(--cyan)">1.2<span class="unit">%</span></div><div class="delta up">▲ 控制在 2% 以内</div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>优化调度出力分配（未来 24h）</h3><div id="chart-dispatch" class="chart"></div></div>
+        <div class="card"><h3>调度指令执行轨迹（今日）</h3>
+          <ul class="timeline">
+            <li><div class="t">00:15</div><div class="c">谷电价时段：储能开始充电，功率 +180 kW</div></li>
+            <li><div class="t">06:30</div><div class="c">光伏出力爬坡，联络线购电按计划下调至 -830 kW</div></li>
+            <li><div class="t">11:00</div><div class="c">光伏大发：储能转入放电，盈余电力外送 +610 kW</div></li>
+            <li><div class="t">14:20</div><div class="c">响应削峰需求：充电桩群功率下调 40%（V2G 支持）</div></li>
+            <li><div class="t">17:45</div><div class="c">晚高峰：储能满功率放电 310 kW，燃气轮机转热备用</div></li>
+            <li><div class="t">19:30</div><div class="c">负荷峰值 3,120 kW 出现，频率/电压均在合格范围</div></li>
+            <li><div class="t">21:00</div><div class="c">转入平段：储能小功率放电，联络线恢复购电</div></li>
+          </ul>
+        </div>
+      </div>
+      <div class="card"><h3>优化调度效果对比（成本构成）</h3><div id="chart-cost" class="chart"></div></div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  智慧微电网能源管理系统 · 设计制作：<b>刘瑜程（202410132030）</b> · 页面数据为模拟演示数据 · 仅用于教学展示
+</footer>
+
+<script>
+/* ================= 时钟 ================= */
+function tick() {
+  const d = new Date();
+  const w = "日一二三四五六"[d.getDay()];
+  document.getElementById("now-date").textContent =
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} 星期${w}`;
+  document.getElementById("now-time").textContent = d.toLocaleTimeString("zh-CN");
+}
+tick(); setInterval(tick, 1000);
+
+/* ================= 导航切换 ================= */
+document.querySelectorAll("nav a").forEach(a => {
+  a.onclick = () => {
+    document.querySelectorAll("nav a").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(x => x.classList.remove("active"));
+    a.classList.add("active");
+    document.getElementById("page-" + a.dataset.page).classList.add("active");
+    renderCharts();
+  };
+});
+
+/* ================= 累计运行天数 / 累计指标 ================= */
+const OP_START = new Date("2023-03-15T00:00:00");
+const runDays = Math.max(0, Math.floor((Date.now() - OP_START) / 86400000));
+document.getElementById("kpi-days").textContent = runDays.toLocaleString();
+document.getElementById("run-days-inline").textContent = runDays.toLocaleString();
+// 累计节约电量 / 收益：按运行天数线性模拟
+const energy = (runDays * 0.33).toFixed(1);            // 万 kWh
+const profit = (runDays * 0.0225).toFixed(1);          // 万元
+document.getElementById("kpi-energy").textContent = energy;
+document.getElementById("kpi-profit").textContent = profit;
+
+/* ================= 投资回收期倒计时（至 2027-05-31） ================= */
+const PAYBACK = new Date("2027-05-31T23:59:59");
+function cdTick() {
+  const diff = PAYBACK - Date.now();
+  if (diff <= 0) return;
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor(diff % 86400000 / 3600000);
+  const m = Math.floor(diff % 3600000 / 60000);
+  const s = Math.floor(diff % 60000 / 1000);
+  document.getElementById("cd-d").textContent = d.toLocaleString();
+  document.getElementById("cd-h").textContent = String(h).padStart(2, "0");
+  document.getElementById("cd-m").textContent = String(m).padStart(2, "0");
+  document.getElementById("cd-s").textContent = String(s).padStart(2, "0");
+  document.getElementById("cd-days2").textContent = d.toLocaleString();
+}
+cdTick(); setInterval(cdTick, 1000);
+
+/* ================= 能耗排名（实时滚动更新） ================= */
+const RANK_USERS = [
+  { name: "工业车间 U-A1021", kw: 1260, color: "#ff8c42" },
+  { name: "居民片区 U-C0789", kw: 905, color: "#a78bfa" },
+  { name: "商业中心 U-B0334", kw: 742, color: "#f5b942" },
+  { name: "充电站 U-D0512", kw: 620, color: "#21c7d0" },
+  { name: "校园综合楼 U-202410132030", kw: 486, color: "#2ecc71" },
+  { name: "数据中心机房 U-E0208", kw: 380, color: "#2f81f7" }
+];
+function renderRank(data) {
+  const max = Math.max(...data.map(u => u.kw));
+  const medals = ["🥇", "🥈", "🥉"];
+  document.getElementById("rank-list").innerHTML = data.map((u, i) => `
+    <div class="rank-row">
+      <div class="rank-no ${i < 3 ? "top" : ""}">${i < 3 ? medals[i] : i + 1}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;margin-bottom:4px">${u.name}</div>
+        <div class="rank-bar"><i style="width:${(u.kw / max * 100).toFixed(0)}%;background:${u.color}"></i></div>
+      </div>
+      <div class="rank-val">${Math.round(u.kw)} kW</div>
+    </div>`).join("");
+}
+function rankJitter() {
+  renderRank(RANK_USERS.map(u => ({ ...u, kw: u.kw * (0.9 + Math.random() * 0.2) }))
+    .sort((a, b) => b.kw - a.kw));
+}
+renderRank(RANK_USERS); setInterval(rankJitter, 5000);
+
+/* ================= 毫秒级离网切换演示 ================= */
+const STEPS = ["st1", "st2", "st3", "st4"];
+const LOGS = [
+  "[14:32:01.000] ⚠️ 检测到大电网电压骤降（U < 60% Un），判别为永久性故障",
+  "[14:32:01.002] ✔ 故障检测确认（2.0 ms），启动孤岛保护逻辑",
+  "[14:32:01.003] ✔ 主动孤岛检测完成（1.5 ms），判定需离网运行",
+  "[14:32:01.004] ✔ 联络线快速断路器 QF1 分闸（1.2 ms），与大电网解列",
+  "[14:32:01.008] ✔ 储能变流器切换 VSG 构网模式，建立 10 kV 母线电压（3.9 ms）",
+  "[14:32:01.009] ✔ 微电网进入孤岛稳定运行，全部负荷恢复供电，全程 8.6 ms"
+];
+let islandRunning = false;
+function runIslandDemo() {
+  if (islandRunning) return;
+  islandRunning = true;
+  const btn = document.getElementById("island-btn");
+  btn.disabled = true; btn.textContent = "⏳ 离网切换执行中...";
+  STEPS.forEach(id => document.getElementById(id).classList.remove("active", "done"));
+  document.getElementById("island-result").style.display = "none";
+  const logEl = document.getElementById("island-log");
+  logEl.innerHTML = "";
+  let i = 0;
+  const timer = setInterval(() => {
+    if (i > 0) document.getElementById(STEPS[i - 1]).classList.replace("active", "done");
+    if (i < STEPS.length) {
+      document.getElementById(STEPS[i]).classList.add("active");
+    }
+    logEl.innerHTML += LOGS[i] + "<br>";
+    logEl.scrollTop = logEl.scrollHeight;
+    i++;
+    if (i >= LOGS.length) {
+      clearInterval(timer);
+      document.getElementById("island-result").style.display = "block";
+      btn.disabled = false; btn.textContent = "🔁 重新演示离网切换";
+      islandRunning = false;
+    }
+  }, 650);
+}
+
+/* ================= 图表 ================= */
+const axis = {
+  axisLine: { lineStyle: { color: "#2a3b5e" } },
+  axisLabel: { color: "#8fa3c0", fontSize: 11 },
+  splitLine: { lineStyle: { color: "#16233c" } }
+};
+const H = "rgb(143,163,192)";
+let rendered = {};
+function mk(id, opt) {
+  const el = document.getElementById(id);
+  if (!el || rendered[id]) return;
+  const c = echarts.init(el);
+  c.setOption(opt);
+  rendered[id] = c;
+  window.addEventListener("resize", () => c.resize());
+}
+const hours24 = Array.from({length: 24}, (_, i) => String(i).padStart(2, "0") + ":00");
+const days7 = Array.from({length: 7}, (_, i) => {
+  const d = new Date(); d.setDate(d.getDate() - (6 - i));
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+});
+const bell = (i, c, w) => Math.exp(-Math.pow((i - c) / w, 2));
+const pvCurve = () => hours24.map((_, i) => +(140 + 2350 * bell(i, 13, 4.2) + 160 * bell(i, 19, 1.5)).toFixed(1));
+
+function renderCharts() {
+  /* 总览：电力需求曲线 */
+  mk("chart-demand", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["今日实际需求", "明日预测需求"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: hours24, ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "今日实际需求", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(1050 + 1150 * bell(i, 20, 3.2) + 700 * bell(i, 11, 3.5) + 200 * bell(i, 15, 2))),
+        lineStyle: { width: 3, color: "#ff8c42" }, areaStyle: { color: "rgba(255,140,66,.18)" } },
+      { name: "明日预测需求", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(1020 + 1180 * bell(i, 20, 3.2) + 720 * bell(i, 11, 3.5))),
+        lineStyle: { width: 2, color: "#2f81f7", type: "dashed" } }
+    ]
+  });
+  /* 总览：运行功率曲线（实时） */
+  mk("chart-rt", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["总发电功率", "总负荷功率", "储能充放"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", boundaryGap: false, data: Array.from({length: 49}, (_, i) => {
+      const m = i * 10; return `${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`; }), ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "总发电功率", type: "line", smooth: true, symbol: "none",
+        data: Array.from({length: 49}, (_, i) => Math.round(600 + 2200 * Math.sin(Math.min(i, 40) / 49 * Math.PI)) + Math.round(Math.sin(i) * 60)),
+        lineStyle: { width: 3, color: "#f5b942" }, areaStyle: { color: "rgba(245,185,66,.18)" } },
+      { name: "总负荷功率", type: "line", smooth: true, symbol: "none",
+        data: Array.from({length: 49}, (_, i) => Math.round(1100 + 1500 * Math.sin(Math.min(i, 44) / 49 * Math.PI * 0.9)) + Math.round(Math.cos(i) * 50)),
+        lineStyle: { width: 3, color: "#ff8c42" } },
+      { name: "储能充放", type: "line", smooth: true, symbol: "none",
+        data: Array.from({length: 49}, (_, i) => (i < 12 ? -180 : i < 24 ? 260 : i < 42 ? 310 : -60)),
+        lineStyle: { width: 2, color: "#2ecc71" } }
+    ]
+  });
+  /* 总览：近7日费用对比 */
+  mk("chart-cost7", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["购电费", "燃料费", "运维费", "总费用"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: days7, ...axis },
+    yAxis: { type: "value", name: "万元", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "购电费", type: "bar", stack: "c", data: [2.9, 3.1, 2.6, 2.8, 2.4, 3.3, 3.0], itemStyle: { color: "#a78bfa" } },
+      { name: "燃料费", type: "bar", stack: "c", data: [0.6, 0.5, 0.7, 0.6, 0.5, 0.7, 0.6], itemStyle: { color: "#ff8c42" } },
+      { name: "运维费", type: "bar", stack: "c", data: [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3], itemStyle: { color: "#21c7d0" } },
+      { name: "总费用", type: "line", data: [3.8, 3.9, 3.6, 3.7, 3.2, 4.3, 3.9], smooth: true, symbol: "circle", symbolSize: 7, lineStyle: { width: 3, color: "#2ecc71" }, itemStyle: { color: "#2ecc71" } }
+    ]
+  });
+
+  /* 功率预测 */
+  mk("chart-pv", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["预测出力", "置信区间"], textStyle: { color: H } },
+    grid: { left: 45, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: hours24, ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "置信区间", type: "line", data: pvCurve().map(v => v * 1.12), lineStyle: { opacity: 0 }, stack: "c", symbol: "none", silent: true },
+      { name: "_lower", type: "line", data: pvCurve().map(v => v * -0.12), lineStyle: { opacity: 0 }, stack: "c", symbol: "none", areaStyle: { color: "rgba(245,185,66,.12)" }, silent: true },
+      { name: "预测出力", type: "line", data: pvCurve(), smooth: true, symbol: "none", lineStyle: { width: 3, color: "#f5b942" }, areaStyle: { color: "rgba(245,185,66,.25)" } }
+    ]
+  });
+  mk("chart-wind", {
+    tooltip: { trigger: "axis" },
+    grid: { left: 45, right: 20, top: 30, bottom: 30 },
+    xAxis: { type: "category", data: hours24, ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [{ name: "预测出力", type: "line",
+      data: hours24.map((_, i) => Math.max(0, Math.round(300 + 260 * Math.sin(i / 3.4) + 80 * Math.sin(i / 1.3) + (i % 5) * 12))),
+      smooth: true, symbol: "none", lineStyle: { width: 3, color: "#21c7d0" }, areaStyle: { color: "rgba(33,199,208,.22)" } }]
+  });
+  mk("chart-load", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["负荷预测", "昨日实际", "光伏出力"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: hours24, ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "负荷预测", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(1050 + 1200 * bell(i, 20, 3.2) + 700 * bell(i, 11, 3.5) + 200 * bell(i, 15, 2))),
+        lineStyle: { width: 3, color: "#ff8c42" }, areaStyle: { color: "rgba(255,140,66,.18)" } },
+      { name: "昨日实际", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(1010 + 1240 * bell(i, 20, 3.2) + 660 * bell(i, 11, 3.5))),
+        lineStyle: { width: 2, color: "#67799a", type: "dashed" } },
+      { name: "光伏出力", type: "line", data: pvCurve(), smooth: true, symbol: "none", lineStyle: { width: 2, color: "#f5b942" } }
+    ]
+  });
+  mk("chart-gen-cmp", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["光伏预测", "光伏实际", "风电预测", "风电实际"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: days7, ...axis },
+    yAxis: { type: "value", name: "kWh", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "光伏预测", type: "bar", data: [7900, 8100, 7600, 8300, 8050, 7980, 8432], itemStyle: { color: "rgba(245,185,66,.5)", borderRadius: 4 } },
+      { name: "光伏实际", type: "bar", data: [7810, 8060, 7420, 8245, 8110, 7930, null], itemStyle: { color: "#f5b942", borderRadius: 4 } },
+      { name: "风电预测", type: "bar", data: [3400, 3100, 2900, 3250, 3000, 3230, 3158], itemStyle: { color: "rgba(33,199,208,.5)", borderRadius: 4 } },
+      { name: "风电实际", type: "bar", data: [3350, 2980, 3010, 3180, 3050, 3200, null], itemStyle: { color: "#21c7d0", borderRadius: 4 } }
+    ]
+  });
+
+  /* 发用电计划 */
+  mk("chart-plan", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["发电计划", "用电计划", "储能充放", "联络线交换"], textStyle: { color: H } },
+    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: hours24, ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "发电计划", type: "line", data: pvCurve().map((v, i) => v + 200 + 150 * Math.sin(i / 3)), smooth: true, symbol: "none", lineStyle: { width: 3, color: "#f5b942" }, areaStyle: { color: "rgba(245,185,66,.15)" } },
+      { name: "用电计划", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(1080 + 1150 * bell(i, 20, 3.2) + 720 * bell(i, 11, 3.5))),
+        lineStyle: { width: 3, color: "#ff8c42" } },
+      { name: "储能充放", type: "bar", barWidth: 8,
+        data: hours24.map((_, i) => i < 7 ? -180 : (i >= 10 && i < 13 ? -150 : (i >= 17 && i < 21 ? -310 : (i >= 21 ? -60 : 0)))),
+        itemStyle: { color: "#2ecc71", borderRadius: 3 } },
+      { name: "联络线交换", type: "line", smooth: true, symbol: "none",
+        data: hours24.map((_, i) => Math.round(-400 - 300 * bell(i, 3, 2.5) + 800 * bell(i, 14, 2))),
+        lineStyle: { width: 2, color: "#a78bfa", type: "dashed" } }
+    ]
+  });
+
+  /* 电源占比 */
+  mk("chart-src-pie", {
+    tooltip: { trigger: "item", formatter: "{b}: {c} kW ({d}%)" },
+    legend: { bottom: 0, textStyle: { color: H, fontSize: 11 } },
+    series: [{ type: "pie", radius: ["45%", "68%"], center: ["50%", "45%"],
+      label: { color: H, fontSize: 11, formatter: "{b}\n{d}%" },
+      data: [
+        { value: 1842, name: "光伏", itemStyle: { color: "#f5b942" } },
+        { value: 416, name: "风电", itemStyle: { color: "#21c7d0" } },
+        { value: 260, name: "储能放电", itemStyle: { color: "#2ecc71" } },
+        { value: 560, name: "大电网受入", itemStyle: { color: "#a78bfa" } }
+      ] }]
+  });
+
+  /* 离网切换波形 */
+  mk("chart-island", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["母线电压 (p.u.)", "系统频率 (Hz)"], textStyle: { color: H } },
+    grid: { left: 50, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", name: "t(ms)", nameTextStyle: { color: H }, data: ["0", "2", "3.5", "4.7", "5", "6", "7", "8.6", "10", "15", "20"], ...axis },
+    yAxis: [
+      { type: "value", name: "p.u.", min: 0.3, max: 1.1, nameTextStyle: { color: H }, ...axis },
+      { type: "value", name: "Hz", min: 48.5, max: 50.5, nameTextStyle: { color: H }, splitLine: { show: false }, axisLabel: { color: "#8fa3c0", fontSize: 11 } }
+    ],
+    series: [
+      { name: "母线电压 (p.u.)", type: "line", data: [1.0, 0.45, 0.42, 0.55, 0.72, 0.9, 0.97, 1.0, 1.0, 1.0, 1.0], smooth: true, symbol: "none", lineStyle: { width: 3, color: "#ff5f57" }, areaStyle: { color: "rgba(255,95,87,.12)" } },
+      { name: "系统频率 (Hz)", type: "line", yAxisIndex: 1, data: [50.0, 50.0, 49.2, 48.9, 49.4, 49.8, 49.95, 49.98, 50.0, 50.0, 50.0], smooth: true, symbol: "none", lineStyle: { width: 3, color: "#21c7d0" } }
+    ]
+  });
+
+  /* 用电分析 */
+  mk("chart-tou", {
+    tooltip: { trigger: "item", formatter: "{b}: {c} 万 kWh ({d}%)" },
+    legend: { bottom: 0, textStyle: { color: H, fontSize: 11 } },
+    series: [{ type: "pie", radius: ["42%", "66%"], center: ["50%", "44%"],
+      label: { color: H, fontSize: 11, formatter: "{b}\n{d}%" },
+      data: [
+        { value: 5.2, name: "谷段用电", itemStyle: { color: "#2f81f7" } },
+        { value: 13.0, name: "平段用电", itemStyle: { color: "#21c7d0" } },
+        { value: 7.6, name: "峰段用电", itemStyle: { color: "#ff8c42" } },
+        { value: 2.6, name: "尖峰用电", itemStyle: { color: "#ff5f57" } }
+      ] }]
+  });
+  mk("chart-load-mix", {
+    tooltip: { trigger: "item" },
+    legend: { bottom: 0, textStyle: { color: H, fontSize: 11 } },
+    series: [{ type: "pie", radius: ["42%", "66%"], center: ["50%", "44%"],
+      label: { color: H, fontSize: 11, formatter: "{b}\n{d}%" },
+      data: [
+        { value: 38, name: "动力/工业负荷", itemStyle: { color: "#2f81f7" } },
+        { value: 24, name: "空调/暖通", itemStyle: { color: "#21c7d0" } },
+        { value: 18, name: "照明/插座", itemStyle: { color: "#f5b942" } },
+        { value: 12, name: "充电桩", itemStyle: { color: "#2ecc71" } },
+        { value: 8, name: "其他", itemStyle: { color: "#67799a" } }
+      ] }]
+  });
+
+  /* 社会效益趋势 */
+  mk("chart-eco-trend", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["CO₂减排 (吨)", "节约标煤 (吨)", "等效植树 (百棵)"], textStyle: { color: H } },
+    grid: { left: 55, right: 55, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: ["2023H2", "2024H1", "2024H2", "2025H1", "2025H2"], ...axis },
+    yAxis: [
+      { type: "value", name: "吨", nameTextStyle: { color: H }, ...axis },
+      { type: "value", name: "百棵", nameTextStyle: { color: H }, splitLine: { show: false }, axisLabel: { color: "#8fa3c0", fontSize: 11 } }
+    ],
+    series: [
+      { name: "CO₂减排 (吨)", type: "bar", stack: "e", data: [210, 320, 410, 430, 462], itemStyle: { color: "#2ecc71", borderRadius: [4, 4, 0, 0] } },
+      { name: "节约标煤 (吨)", type: "line", yAxisIndex: 0, smooth: true, symbol: "circle", symbolSize: 7, data: [86, 131, 168, 176, 187], lineStyle: { width: 3, color: "#ff8c42" }, itemStyle: { color: "#ff8c42" } },
+      { name: "等效植树 (百棵)", type: "line", yAxisIndex: 1, smooth: true, symbol: "circle", symbolSize: 7, data: [117, 178, 228, 239, 256], lineStyle: { width: 3, color: "#21c7d0" }, itemStyle: { color: "#21c7d0" } }
+    ]
+  });
+
+  /* 统计 */
+  const d30 = Array.from({length: 30}, (_, i) => `${i + 1}日`);
+  mk("chart-stat-trend", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["发电量", "用电量"], textStyle: { color: H } },
+    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: d30, ...axis },
+    yAxis: { type: "value", name: "万 kWh", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "发电量", type: "line", smooth: true, symbol: "none", data: d30.map((_, i) => +(1.05 + 0.25 * Math.sin(i / 3) + i * 0.004).toFixed(2)), lineStyle: { width: 3, color: "#f5b942" }, areaStyle: { color: "rgba(245,185,66,.15)" } },
+      { name: "用电量", type: "line", smooth: true, symbol: "none", data: d30.map((_, i) => +(0.98 + 0.2 * Math.sin(i / 3 + 1) + i * 0.0035).toFixed(2)), lineStyle: { width: 3, color: "#ff8c42" } }
+    ]
+  });
+  mk("chart-stat-stack", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["光伏", "风电", "燃气轮机", "大电网购入"], textStyle: { color: H } },
+    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: ["7月", "8月", "9月", "10月", "11月"], ...axis },
+    yAxis: { type: "value", name: "万 kWh", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "光伏", type: "bar", stack: "s", data: [14.2, 13.8, 11.5, 9.8, 8.1], itemStyle: { color: "#f5b942" } },
+      { name: "风电", type: "bar", stack: "s", data: [6.1, 5.4, 7.2, 8.6, 9.4], itemStyle: { color: "#21c7d0" } },
+      { name: "燃气轮机", type: "bar", stack: "s", data: [3.2, 3.5, 2.8, 2.1, 2.6], itemStyle: { color: "#ff8c42" } },
+      { name: "大电网购入", type: "bar", stack: "s", data: [9.5, 8.8, 10.1, 11.2, 12.5], itemStyle: { color: "#a78bfa", borderRadius: [4, 4, 0, 0] } }
+    ]
+  });
+  mk("chart-radar", {
+    tooltip: {},
+    legend: { data: ["本月", "上月"], bottom: 0, textStyle: { color: H } },
+    radar: {
+      indicator: [
+        { name: "经济性", max: 100 }, { name: "可靠性", max: 100 }, { name: "新能源消纳", max: 100 },
+        { name: "电能质量", max: 100 }, { name: "低碳环保", max: 100 }, { name: "响应速度", max: 100 }
+      ],
+      splitArea: { areaStyle: { color: ["rgba(47,129,247,.04)", "rgba(47,129,247,.08)"] } },
+      axisLine: { lineStyle: { color: "#2a3b5e" } },
+      splitLine: { lineStyle: { color: "#22345a" } },
+      axisName: { color: H, fontSize: 12 }
+    },
+    series: [{ type: "radar", data: [
+      { value: [88, 99, 97, 92, 90, 85], name: "本月", lineStyle: { color: "#2ecc71", width: 3 }, areaStyle: { color: "rgba(46,204,113,.25)" }, itemStyle: { color: "#2ecc71" } },
+      { value: [80, 98, 94, 90, 86, 82], name: "上月", lineStyle: { color: "#2f81f7", width: 2, type: "dashed" }, areaStyle: { color: "rgba(47,129,247,.12)" }, itemStyle: { color: "#2f81f7" } }
+    ] }]
+  });
+
+  /* 优化调度 */
+  mk("chart-dispatch", {
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    legend: { data: ["光伏", "风电", "储能放电", "燃气轮机", "大电网购入"], textStyle: { color: H } },
+    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: ["00-04时", "04-08时", "08-12时", "12-17时", "17-21时", "21-24时"], ...axis },
+    yAxis: { type: "value", name: "kW", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "光伏", type: "bar", stack: "t", data: [0, 120, 1850, 2640, 620, 0], itemStyle: { color: "#f5b942" } },
+      { name: "风电", type: "bar", stack: "t", data: [320, 410, 380, 300, 450, 380], itemStyle: { color: "#21c7d0" } },
+      { name: "储能放电", type: "bar", stack: "t", data: [0, 0, 90, 150, 310, 60], itemStyle: { color: "#2ecc71" } },
+      { name: "燃气轮机", type: "bar", stack: "t", data: [0, 0, 0, 0, 260, 0], itemStyle: { color: "#ff8c42" } },
+      { name: "大电网购入", type: "bar", stack: "t", data: [740, 950, 20, 0, 1480, 1250], itemStyle: { color: "#a78bfa", borderRadius: [4, 4, 0, 0] } }
+    ]
+  });
+  mk("chart-cost", {
+    tooltip: { trigger: "axis" },
+    legend: { data: ["优化前成本", "优化后成本"], textStyle: { color: H } },
+    grid: { left: 55, right: 20, top: 40, bottom: 30 },
+    xAxis: { type: "category", data: ["购电成本", "燃料成本", "储能损耗", "需求响应补偿", "合计"], ...axis },
+    yAxis: { type: "value", name: "万元/月", nameTextStyle: { color: H }, ...axis },
+    series: [
+      { name: "优化前成本", type: "bar", data: [14.2, 5.6, 1.2, 0.9, 21.9], itemStyle: { color: "#67799a", borderRadius: 4 } },
+      { name: "优化后成本", type: "bar", data: [11.8, 4.1, 0.8, 0.6, 17.3], itemStyle: { color: "#2ecc71", borderRadius: 4 } }
+    ]
+  });
+}
+renderCharts();
+</script>
+</body>
+</html>
